@@ -4,9 +4,9 @@ import requests
 from rag_engine import search_documents
 
 
-# ---------------------------------------------------------
+# =========================================================
 # PAGE CONFIGURATION
-# ---------------------------------------------------------
+# =========================================================
 
 st.set_page_config(
     page_title="Ask Document - SecureVault",
@@ -15,9 +15,9 @@ st.set_page_config(
 )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # CUSTOM CSS
-# ---------------------------------------------------------
+# =========================================================
 
 st.markdown(
     """
@@ -43,6 +43,7 @@ st.markdown(
 
     .answer-box {
         padding: 10px;
+        line-height: 1.7;
     }
 
     </style>
@@ -51,9 +52,9 @@ st.markdown(
 )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # SIDEBAR
-# ---------------------------------------------------------
+# =========================================================
 
 with st.sidebar:
 
@@ -103,10 +104,18 @@ with st.sidebar:
         label="ℹ️ About"
     )
 
+    st.markdown("---")
 
-# ---------------------------------------------------------
+    st.markdown("### ⚙️ System")
+
+    st.markdown("🐍 Python")
+    st.markdown("🧠 RAG + FAISS")
+    st.markdown("🤖 Llama 3.2")
+
+
+# =========================================================
 # PAGE HEADER
-# ---------------------------------------------------------
+# =========================================================
 
 st.markdown(
     """
@@ -122,9 +131,9 @@ st.markdown(
 )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # CHECK DOCUMENT
-# ---------------------------------------------------------
+# =========================================================
 
 if "document_text" not in st.session_state:
     st.warning("⚠️ No document has been processed yet.")
@@ -147,7 +156,7 @@ if not st.session_state.document_text:
     st.stop()
 
 
-if "rag_index" not in st.session_state or st.session_state.rag_index is None:
+if "rag_index" not in st.session_state:
     st.warning("⚠️ Vector store is not ready.")
 
     st.info(
@@ -158,33 +167,51 @@ if "rag_index" not in st.session_state or st.session_state.rag_index is None:
     st.stop()
 
 
-# ---------------------------------------------------------
+if st.session_state.rag_index is None:
+    st.warning("⚠️ Vector store is not ready.")
+
+    st.info(
+        "Please process your document again from the "
+        "**Upload & Process** page."
+    )
+
+    st.stop()
+
+
+# =========================================================
 # DOCUMENT INFORMATION
-# ---------------------------------------------------------
+# =========================================================
 
 st.markdown("## 📄 Current Document")
+
+uploaded_file = st.session_state.get("uploaded_file")
+
+if uploaded_file is not None:
+    document_name = uploaded_file.name
+else:
+    document_name = "Uploaded document"
+
 
 col1, col2 = st.columns(2)
 
 with col1:
+
     st.metric(
         "Document",
-        st.session_state.get(
-            "uploaded_file",
-            "Uploaded document"
-        )
+        document_name
     )
 
 with col2:
+
     st.metric(
         "Chunks",
         len(st.session_state.get("rag_chunks", []))
     )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # GENERATE ANSWER USING OLLAMA
-# ---------------------------------------------------------
+# =========================================================
 
 def generate_answer(question, context):
 
@@ -226,9 +253,9 @@ ANSWER:
     return result["response"]
 
 
-# ---------------------------------------------------------
+# =========================================================
 # QUESTION INPUT
-# ---------------------------------------------------------
+# =========================================================
 
 st.markdown("## 💬 Ask a Question")
 
@@ -238,9 +265,9 @@ question = st.text_input(
 )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # ASK BUTTON
-# ---------------------------------------------------------
+# =========================================================
 
 if st.button(
     "🤖 Ask Document",
@@ -279,12 +306,28 @@ if st.button(
 
 
         # -------------------------------------------------
+        # CHECK SEARCH RESULTS
+        # -------------------------------------------------
+
+        if not relevant_chunks:
+
+            st.warning(
+                "⚠️ No relevant information was found in the document."
+            )
+
+            st.stop()
+
+
+        # -------------------------------------------------
         # SHOW RETRIEVED INFORMATION
         # -------------------------------------------------
 
         st.markdown("## 🔎 Relevant Document Sections")
 
-        for i, chunk in enumerate(relevant_chunks, start=1):
+        for i, chunk in enumerate(
+            relevant_chunks,
+            start=1
+        ):
 
             with st.expander(
                 f"Relevant Section {i}"
@@ -317,24 +360,23 @@ if st.button(
                     context
                 )
 
-                st.success("✅ Answer generated successfully!")
+                st.success(
+                    "✅ Answer generated successfully!"
+                )
 
-                with st.container(border=True):
-
-                    st.markdown(
-                        f"""
-                        <div class="answer-box">
-                            {answer}
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
+                st.markdown(
+                    f"""
+                    <div class="answer-box">
+                        {answer}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
             except requests.exceptions.Timeout:
 
                 st.error(
-                    "⏱️ The request timed out. "
-                    "Llama 3.2 took too long to generate the answer."
+                    "⏱️ The request timed out."
                 )
 
                 st.info(
@@ -364,32 +406,36 @@ if st.button(
                 )
 
 
-# ---------------------------------------------------------
-# INFORMATION
-# ---------------------------------------------------------
+# =========================================================
+# HOW RAG WORKS
+# =========================================================
 
 st.markdown("---")
 
-with st.container(border=True):
+st.markdown("## 🧠 How RAG Works")
 
-    st.markdown("### 🧠 How RAG Works")
+with st.container(border=True):
 
     st.markdown(
         """
-        **1. Question** → Your question is converted into a search query.
+        **1. Question**  
+        Your question is converted into a search query.
 
-        **2. Retrieval** → FAISS finds the most relevant document sections.
+        **2. Retrieval**  
+        FAISS finds the most relevant document sections.
 
-        **3. Context** → The relevant sections are provided to Llama 3.2.
+        **3. Context**  
+        The relevant sections are provided to Llama 3.2.
 
-        **4. Generation** → Llama 3.2 generates an answer using the retrieved context.
+        **4. Generation**  
+        Llama 3.2 generates an answer using the retrieved context.
         """
     )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # FOOTER
-# ---------------------------------------------------------
+# =========================================================
 
 st.markdown(
     """
